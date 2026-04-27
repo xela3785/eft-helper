@@ -27,8 +27,9 @@ export function AppNavigation() {
   const logoutMutation = useMutation({
     mutationFn: logoutUser,
     onSuccess: async () => {
+      await queryClient.cancelQueries({ queryKey: authQueryKeys.me });
+      queryClient.removeQueries({ queryKey: authQueryKeys.me });
       clearUser();
-      await queryClient.invalidateQueries({ queryKey: authQueryKeys.me });
       toast.success('Вы вышли из аккаунта.');
       navigate('/login', { replace: true });
     },
