@@ -1,17 +1,17 @@
 import { Link } from 'react-router-dom';
 import { AuthForm } from '../features/auth/components/AuthForm';
-import { buttonClassNames } from '../shared/ui/Button';
+import { buttonClassNames } from '../shared/ui/button-class-names';
 import { PageShell } from '../shared/ui/PageShell';
 
 export function RegisterPage() {
   return (
     <PageShell
-      eyebrow="Подготовленный маршрут"
+      eyebrow="Создание аккаунта"
       title="Регистрация"
-      description="Форма регистрации подготовлена заранее и может быть подключена позже, когда авторизация понадобится в приложении."
+      description="Создайте учетную запись, чтобы отслеживать прогресс и входить в систему по логину и паролю."
       actions={
-        <Link className={buttonClassNames()} to="/">
-          На дашборд
+        <Link className={buttonClassNames()} to="/login">
+          Вход
         </Link>
       }
     >

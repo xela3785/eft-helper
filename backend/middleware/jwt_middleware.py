@@ -89,8 +89,8 @@ class JWTTokenRefreshMiddleware(BaseHTTPMiddleware):
             refresh_token: str,
     ) -> dict | None:
         auth_service = get_auth_service()
-        username = auth_service.validate_refresh_token(refresh_token)
-        if not username:
+        user_id = auth_service.validate_refresh_token(refresh_token)
+        if not user_id:
             raise InvalidTokenError('Incorrect refresh_token')
 
-        return auth_service.generate_tokens(data={'sub': username})
+        return auth_service.generate_tokens(data={'sub': user_id})

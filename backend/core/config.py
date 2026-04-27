@@ -18,6 +18,16 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE: timedelta = timedelta(minutes=1)
     REFRESH_TOKEN_EXPIRE: timedelta = timedelta(days=7)
 
+    # Google Oauth2
+    GOOGLE_CLIENT_ID: str | None = os.getenv("GOOGLE_CLIENT_ID", None)
+    GOOGLE_CLIENT_SECRET: str | None = os.getenv("GOOGLE_CLIENT_SECRET", None)
+    GOOGLE_REDIRECT_URL: str | None = os.getenv("GOOGLE_REDIRECT_URL", None)
+
+    # Github Oauth2
+    GITHUB_CLIENT_ID: str | None = os.getenv("GITHUB_CLIENT_ID", None)
+    GITHUB_CLIENT_SECRET: str | None = os.getenv("GITHUB_CLIENT_SECRET", None)
+    GITHUB_REDIRECT_URL: str | None = os.getenv("GITHUB_REDIRECT_URL", None)
+
     class Config:
         env_file = '.env'
 
