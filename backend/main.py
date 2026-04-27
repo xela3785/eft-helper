@@ -5,7 +5,6 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from api.v1 import hideout, user
-from core.database import engine, Base
 from core.eft_cache import get_game_data, update_cache_from_api
 from middleware.jwt_middleware import JWTTokenRefreshMiddleware
 
@@ -14,10 +13,9 @@ logging.basicConfig(level=logging.INFO)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    data = get_game_data()
+    data = await get_game_data()
     if not data.get('data', {}).get('hideoutStations', []):
-        update_cache_from_api()
-    Base.metadata.create_all(bind=engine)
+        await update_cache_from_api()
     yield
 
 
@@ -44,5 +42,5 @@ app.include_router(hideout.router, prefix='/api/v1/hideout', tags=['hideout'])
 
 @app.get('/debug/cache')
 async def test_cache():
-    data = get_game_data()
+    data = await get_game_data()
     return data.get('data')

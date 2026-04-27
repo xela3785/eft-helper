@@ -1,11 +1,12 @@
 import httpx
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 from core.config import settings
 from models.users import User, UserSocialLink
 
 
-def get_google_login_url() -> str:
+async def get_google_login_url() -> str:
     base = 'https://accounts.google.com/o/oauth2/v2/auth'
     params = {
         'client_id': settings.GOOGLE_CLIENT_ID,
@@ -18,7 +19,7 @@ def get_google_login_url() -> str:
     return f'{base}?{url_params}'
 
 
-def exchange_code_for_token(code: str) -> dict:
+async def exchange_code_for_token(code: str) -> dict:
     token_url = 'https://oauth2.googleapis.com/token'
     data = {
         'code': code,
@@ -27,32 +28,33 @@ def exchange_code_for_token(code: str) -> dict:
         'redirect_uri': settings.GOOGLE_REDIRECT_URL,
         'grant_type': 'authorization_code',
     }
-    with httpx.Client() as client:
-        response = client.post(token_url, data=data)
+    async with httpx.AsyncClient() as client:
+        response = await client.post(token_url, data=data)
         return response.json()
 
 
-def get_google_user_info(access_token: str) -> dict:
+async def get_google_user_info(access_token: str) -> dict:
     url = 'https://openidconnect.googleapis.com/v1/userinfo'
     headers = {"Authorization": f"Bearer {access_token}"}
-    with httpx.Client() as client:
-        response = client.get(url, headers=headers)
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, headers=headers)
         return response.json()
 
 
-def process_google_callback(code: str, db: Session) -> tuple[User | type[User], bool]:
-    token_info = exchange_code_for_token(code)
+async def process_google_callback(code: str, db: AsyncSession) -> tuple[User | None, bool]:
+    token_info = await exchange_code_for_token(code)
     access_token = token_info['access_token']
-    id_token = token_info['id_token']
 
-    user_info = get_google_user_info(access_token)
+    user_info = await get_google_user_info(access_token)
     email: str | None = user_info.get('email', None)
     provider_id: str | None = user_info.get('sub')
 
     if not email or not provider_id:
         raise ValueError('Google did not return required information')
 
-    user = db.query(User).filter_by(email=email).first()
+    stmt = select(User).where(User.email == email)
+    result = await db.execute(stmt)
+    user: User | None = result.scalar_one_or_none()
     created_new = False
 
     if not user:
@@ -63,12 +65,17 @@ def process_google_callback(code: str, db: Session) -> tuple[User | type[User], 
             provider_id=provider_id,
         )
         db.add(user)
-        db.commit()
-        db.refresh(user)
+        await db.commit()
+        await db.refresh(user)
         created_new = True
 
     elif user.provider != 'google':
-        link = db.query(UserSocialLink).filter_by(provider='google', provider_user_id=provider_id).first()
+        stmt = select(UserSocialLink).where(
+            UserSocialLink.provider == 'google',
+            UserSocialLink.provider_user_id == provider_id,
+        )
+        result = await db.execute(stmt)
+        link: UserSocialLink | None = result.scalar_one_or_none()
         if not link:
             new_link = UserSocialLink(
                 user_id=user.id,
@@ -77,14 +84,20 @@ def process_google_callback(code: str, db: Session) -> tuple[User | type[User], 
                 access_token=access_token,
             )
             db.add(new_link)
-            db.commit()
-        link.access_token = access_token
-        db.commit()
+            await db.commit()
+        else:
+            link.access_token = access_token
+            await db.commit()
 
     else:
-        link = db.query(UserSocialLink).filter_by(provider='google', provider_user_id=provider_id).first()
+        stmt = select(UserSocialLink).where(
+            UserSocialLink.provider == 'google',
+            UserSocialLink.provider_user_id == provider_id,
+        )
+        result = await db.execute(stmt)
+        link: UserSocialLink | None = result.scalar_one_or_none()
         if link and not link.access_token:
             link.access_token = access_token
-            db.commit()
+            await db.commit()
 
     return user, created_new

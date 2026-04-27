@@ -31,7 +31,7 @@ class TarkovDataCache:
 
         self._load_from_file()
 
-    def _load_from_file(self) -> bool:
+    async def _load_from_file(self) -> bool:
         if not self._cache_file.exists():
             logger.warning(f'Cache file not found at {self._cache_file}. Initializing with empty data.')
             self._data = self._fallback_data
@@ -48,11 +48,11 @@ class TarkovDataCache:
             self._data = self._fallback_data
             return False
 
-    def get_data(self) -> Dict[str, Any]:
+    async def get_data(self) -> Dict[str, Any]:
         with self._data_lock:
             return json.loads(json.dumps(self._data))
 
-    def update_from_api(self) -> bool:
+    async def update_from_api(self) -> bool:
         query = """
             {
                 hideoutStations(lang: ru) {
@@ -162,13 +162,15 @@ class TarkovDataCache:
             """
         headers = {'Content-Type': 'application/json'}
         try:
-            response = httpx.post('https://api.tarkov.dev/graphql', headers=headers, json={'query': query})
-            api_data = response.json()
+            async with httpx.AsyncClient() as client:
+                response = await client.post('https://api.tarkov.dev/graphql', headers=headers, json={'query': query})
+                api_data = response.json()
 
             if 'errors' in api_data:
                 logger.error(f'GraphQL API returned errors: {api_data["errors"]}')
                 return False
 
+            self._cache_file.parent.mkdir(parents=True, exist_ok=True)
             with open(self._cache_file, 'w', encoding='utf-8') as f:
                 json.dump(api_data, f, ensure_ascii=False, indent=2)
 
@@ -182,20 +184,20 @@ class TarkovDataCache:
             logger.exception('An error occurred while updating cache from GraphQL API')
             return False
 
-    def reload_from_file(self) -> bool:
-        return self._load_from_file()
+    async def reload_from_file(self) -> bool:
+        return await self._load_from_file()
 
 
 cache = TarkovDataCache()
 
 
-def get_game_data() -> Dict[str, Any]:
-    return cache.get_data()
+async def get_game_data() -> Dict[str, Any]:
+    return await cache.get_data()
 
 
-def update_cache_from_api() -> bool:
-    return cache.update_from_api()
+async def update_cache_from_api() -> bool:
+    return await cache.update_from_api()
 
 
-def reload_cache() -> bool:
-    return cache.reload_from_file()
+async def reload_cache() -> bool:
+    return await cache.reload_from_file()

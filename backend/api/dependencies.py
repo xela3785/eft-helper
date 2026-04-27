@@ -1,4 +1,5 @@
 from fastapi import Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from starlette.requests import Request
 
@@ -7,15 +8,15 @@ from models.users import User
 from services.user_services import UserService, AuthenticationService
 
 
-def get_user_service(db: Session = Depends(get_db)) -> UserService:
+async def get_user_service(db: AsyncSession = Depends(get_db)) -> UserService:
     return UserService(db)
 
 
-def get_auth_service(db: Session = Depends(get_db)) -> AuthenticationService:
+async def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthenticationService:
     return AuthenticationService(db)
 
 
-def get_current_active_user(
+async def get_current_active_user(
         request: Request,
         user_service: UserService = Depends(get_user_service)
 ) -> type[User]:
@@ -33,7 +34,7 @@ def get_current_active_user(
         raise credentials_exception
 
     try:
-        user = user_service.get_user(user_id=user_id)
+        user = await user_service.get_user(user_id=user_id)
         return user
     except HTTPException:
         raise credentials_exception

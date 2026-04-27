@@ -10,6 +10,7 @@ load_dotenv()
 class Settings(BaseSettings):
     PROJECT_NAME: str = 'EFT-Helper'
     SQLALCHEMY_DATABASE_URL: str = os.getenv('SQLALCHEMY_DATABASE_URL')
+    SQLALCHEMY_DATABASE_SYNC_URL: str = os.getenv('SQLALCHEMY_DATABASE_SYNC_URL')
     DB_ECHO: bool = False  # logging SQL
 
     SECRET_KEY: str = os.getenv("SECRET_KEY")

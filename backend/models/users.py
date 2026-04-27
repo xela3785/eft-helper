@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, func, UniqueConstraint
+from sqlalchemy import Column, Integer, String, DateTime, func, UniqueConstraint, ForeignKey
 
 from core.database import Base
 
@@ -6,7 +6,7 @@ from core.database import Base
 class User(Base):
     __tablename__ = 'users'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True, index=True)
     email = Column(String, index=True, unique=True, nullable=False)
     hashed_password = Column(String, nullable=True)
     provider = Column(String, default='local')
@@ -18,7 +18,12 @@ class UserSocialLink(Base):
     __tablename__ = 'user_social_links'
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, nullable=False)
+    user_id = Column(
+        Integer,
+        ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
     provider = Column(String)
     provider_user_id = Column(String, nullable=False)
     access_token = Column(String, nullable=False)
