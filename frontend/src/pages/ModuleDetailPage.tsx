@@ -13,7 +13,8 @@ import {
 } from '../features/hideout/lib/progress';
 import { useHideoutProgressStore } from '../features/hideout/model/progress-store';
 import { getErrorMessage } from '../shared/api/errors';
-import { buttonClassNames, Button } from '../shared/ui/Button';
+import { Button } from '../shared/ui/Button';
+import { buttonClassNames } from '../shared/ui/button-class-names';
 import { EmptyState } from '../shared/ui/EmptyState';
 import { PageShell } from '../shared/ui/PageShell';
 import { ProgressBar } from '../shared/ui/ProgressBar';

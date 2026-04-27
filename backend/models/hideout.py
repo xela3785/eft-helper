@@ -1,0 +1,13 @@
+from core.database import Basefrom sqlalchemy import Column, Integer, String, DateTime, ForeignKey, JSON, func
+
+from core.database import Base
+
+
+class HideoutProgress(Base):
+    __tablename__ = 'hideout_progress'
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey('users.id'))
+    module_id = Column(String, index=True)
+    collected_items = Column(JSON, default={})
+    completed = Column(Integer, default=0)

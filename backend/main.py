@@ -5,10 +5,9 @@ from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
 
 from api.v1 import hideout, user
-from core.database import engine
+from core.database import engine, Base
 from core.eft_cache import get_game_data, update_cache_from_api
 from middleware.jwt_middleware import JWTTokenRefreshMiddleware
-from models.sql_models import Base
 
 logging.basicConfig(level=logging.INFO)
 
@@ -25,16 +24,16 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 origins = [
-    "http://localhost:5173",  # Default Vite port
-    "http://127.0.0.1:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,       # Or use ["*"] for development ONLY
+    allow_origins=origins,  # Or use ["*"] for development ONLY
     allow_credentials=True,
-    allow_methods=["*"],         # Allows all HTTP methods (GET, POST, etc.)
-    allow_headers=["*"],         # Allows all headers
+    allow_methods=["*"],  # Allows all HTTP methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allows all headers
 )
 
 app.add_middleware(JWTTokenRefreshMiddleware)

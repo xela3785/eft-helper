@@ -8,7 +8,7 @@ from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
 from core.config import settings
-from models.sql_models import User
+from models.users import User
 from schemas.user import UserCreate
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -20,15 +20,15 @@ class UserService:
         self.db = db
 
     def create_user(self, user_data: UserCreate) -> User:
-        existing_user = self.db.query(User).filter(User.username == user_data.username).first()
+        existing_user = self.db.query(User).filter(User.email == user_data.email).first()
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Username already registered'
+                detail='Email already registered'
             )
 
-        user_data.password = self.hash_password(user_data.password)
-        db_user = User(**user_data.model_dump())
+        hashed_password = self.hash_password(user_data.password)
+        db_user = User(email=user_data.email, hashed_password=hashed_password)
         self.db.add(db_user)
         self.db.commit()
         self.db.refresh(db_user)
@@ -44,8 +44,8 @@ class UserService:
 
         return user
 
-    def get_user_by_username(self, username: str) -> type[User]:
-        user = self.db.query(User).filter(User.username == username).first()
+    def get_user_by_email(self, email: str) -> type[User]:
+        user = self.db.query(User).filter(User.email == email).first()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -63,14 +63,14 @@ class AuthenticationService:
     def __init__(self, db: Session):
         self.db = db
 
-    def authenticate_user(self, username: str, password: str) -> Annotated[type[User] | bool, None]:
-        user = self.db.query(User).filter(User.username == username).first()
+    def authenticate_user(self, email: str, password: str) -> Annotated[type[User] | bool, None]:
+        user = self.db.query(User).filter(User.email == email).first()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='User not found'
             )
-        if not self.check_password(password, str(user.password)):
+        if not self.check_password(password, str(user.hashed_password)):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='Incorrect Password'
@@ -99,7 +99,7 @@ class AuthenticationService:
     ) -> Response:
         tokens: dict = self.generate_tokens(data)
         if not response:
-            response = Response(status_code=200)
+            response = Response(status_code=status.HTTP_204_NO_CONTENT)
         response = self.set_access_token(
             tokens.get('access_token'), tokens.get('access_token_expire'), response
         )
@@ -119,17 +119,17 @@ class AuthenticationService:
         )
 
     @staticmethod
-    def validate_refresh_token(token: str) -> str | None:
+    def validate_refresh_token(token: str) -> int | None:
         try:
             payload = jwt.decode(
                 token,
                 settings.SECRET_KEY,
                 algorithms=[settings.ALGORITHM]
             )
-            username: str | None = payload.get('sub')
-            if not username:
+            user_id: int | None = payload.get('sub')
+            if not user_id:
                 return None
-            return username
+            return user_id
         except (ExpiredSignatureError, InvalidTokenError, DecodeError):
             return None
 

@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from starlette.requests import Request
 
 from core.database import get_db
-from models.sql_models import User
+from models.users import User
 from services.user_services import UserService, AuthenticationService
 
 
@@ -25,16 +25,15 @@ def get_current_active_user(
         headers={'WWW-Authencticate': 'Bearer'}
     )
 
-    payload = getattr(request.state, 'user_payload', None)
-    if payload is None:
+    if (payload := getattr(request.state, 'user_payload', None)) is None:
         raise credentials_exception
 
-    username: str | None = payload.get('sub')
-    if username is None:
+    user_id: int | None = int(payload.get('sub', None))
+    if user_id is None:
         raise credentials_exception
 
     try:
-        user = user_service.get_user_by_username(username=username)
+        user = user_service.get_user(user_id=user_id)
         return user
     except HTTPException:
         raise credentials_exception

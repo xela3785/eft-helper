@@ -1,5 +1,13 @@
 import { AxiosError } from 'axios';
 
+export function getErrorStatus(error: unknown) {
+  if (error instanceof AxiosError) {
+    return error.response?.status;
+  }
+
+  return undefined;
+}
+
 export function getErrorMessage(error: unknown, fallbackMessage: string) {
   if (error instanceof AxiosError) {
     const detail = error.response?.data?.detail;

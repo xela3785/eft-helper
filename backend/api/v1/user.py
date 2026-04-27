@@ -1,14 +1,68 @@
 from typing import Annotated
 
-from fastapi import APIRouter
-from fastapi import Depends
+from fastapi import APIRouter, Depends
+from fastapi.responses import RedirectResponse
+from sqlalchemy.orm import Session
 
 from api.dependencies import get_user_service, get_auth_service, get_current_active_user
-from models.sql_models import User
+from core.database import get_db
+from models.users import User
 from schemas.user import UserCreate, UserResponse, UserLogin
 from services.user_services import UserService, AuthenticationService
+from social_auth.github import get_github_login_url, process_github_callback
+from social_auth.google import get_google_login_url, process_google_callback
 
 router = APIRouter()
+
+
+@router.get('/google')
+def google_login():
+    url = get_google_login_url()
+    return RedirectResponse(url=url)
+
+
+@router.get('/github')
+def github_login():
+    url = get_github_login_url()
+    return RedirectResponse(url=url)
+
+
+@router.get('/google/callback')
+def google_callback(
+        code: str,
+        db: Session = Depends(get_db),
+        auth_service: AuthenticationService = Depends(get_auth_service),
+):
+    try:
+        user, created = process_google_callback(code, db)
+    except Exception as e:
+        return {'error': f'Auth failed: {str(e)}'}
+
+    response = RedirectResponse(url='http://127.0.0.1:3000/dashboard/')
+    response = auth_service.set_cookie_tokens(
+        response=response,
+        data={'sub': str(user.id)}
+    )
+    return response
+
+
+@router.get('/github/callback')
+def github_callback(
+        code: str,
+        db: Session = Depends(get_db),
+        auth_service: AuthenticationService = Depends(get_auth_service),
+):
+    try:
+        user, created = process_github_callback(code, db)
+    except Exception as e:
+        return {'error': f'Auth failed: {str(e)}'}
+
+    response = RedirectResponse(url='http://127.0.0.1:3000/dashboard/')
+    response = auth_service.set_cookie_tokens(
+        response=response,
+        data={'sub': str(user.id)}
+    )
+    return response
 
 
 @router.post('/register', response_model=UserResponse)
@@ -24,11 +78,12 @@ def login(
         user_data: UserLogin,
         auth_service: AuthenticationService = Depends(get_auth_service)
 ):
-    user = auth_service.authenticate_user(user_data.username, user_data.password)
+    user = auth_service.authenticate_user(user_data.email, user_data.password)
     response = auth_service.set_cookie_tokens(
-        data={'sub': user.username}
+        data={'sub': str(user.id)}
     )
     return response
+
 
 @router.get('/me', response_model=UserResponse)
 def get_me(
