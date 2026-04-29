@@ -165,12 +165,13 @@ class AbstractCache(ABC, metaclass=SingletonABCMeta):
             return False
 
         try:
+            transformed = await self._transform_before_save(api_data)
             self._cache_file.parent.mkdir(parents=True, exist_ok=True)
-            payload = json.dumps(api_data, ensure_ascii=False, indent=2)
+            payload = json.dumps(transformed, ensure_ascii=False, indent=2)
             await asyncio.to_thread(self._write_file_atomically, self._cache_file, payload)
 
             async with self._lock:
-                self._data = api_data
+                self._data = transformed
                 self._cache.clear()
                 self._initialized = True
 
@@ -186,6 +187,10 @@ class AbstractCache(ABC, metaclass=SingletonABCMeta):
             if raise_exceptions:
                 raise CacheWriteError('Failed to write cache') from e
             return False
+
+    @staticmethod
+    async def _transform_before_save(api_data: Dict[str, Any]) -> Dict[str, Any]:
+        return api_data
 
 
 class ModulesCache(AbstractCache):
@@ -366,3 +371,58 @@ class MarketCache(AbstractCache):
                 self._cache[item_id] = item
                 return copy.deepcopy(item)
         return None
+
+    @staticmethod
+    async def _transform_before_save(api_data: Dict[str, Any]) -> Dict[str, Any]:
+        items = api_data.get("data", {}).get("items", [])
+
+        transformed_data = []
+        for item in items:
+            transformed_item = item
+            # avg24Price
+            transformed_item['avg24hPrice'] = item.get('avg24hPrice', 0)
+
+            # Max sell for
+            sell_prices = item.get('sellFor', [])
+            sell_to_trader = [p for p in sell_prices if p.get('vendor', {}).get('name') != 'Барахолка']
+            max_price = max(
+                sell_to_trader,
+                key=lambda x: x.get('price', 0),
+                default=None
+            ) if sell_to_trader else None
+            transformed_item['maxSellFor'] = max_price
+
+            # Min buy for
+            buy_prices = item.get('buyFor', [])
+            buy_from_trader = [p for p in buy_prices if p.get('vendor', {}).get('name') != 'Барахолка']
+            min_price = min(
+                buy_from_trader,
+                key=lambda x: x.get('price', 0),
+                default=None
+            ) if buy_from_trader else None
+            transformed_item['minBuyFor'] = min_price
+
+            # Buy from market sell to trader
+            buy_from_market = next(
+                (obj for obj in buy_prices if obj.get('vendor', {}).get('name') == 'Барахолка'),
+                None
+            )
+            sell_to_market = next(
+                (obj for obj in sell_prices if obj.get('vendor', {}).get('name') == 'Барахолка'),
+                None
+            )
+
+            transformed_item['sellToTraderFromMarket'] = (
+                (max_price.get('price', 0) - buy_from_market.get('price', 0))
+                if max_price and buy_from_market else None
+            )
+            transformed_item['sellToMarketFromTrader'] = (
+                (sell_to_market.get('price', 0) - min_price.get('price', 0))
+                if min_price and sell_to_market else None
+            )
+
+            transformed_data.append(transformed_item)
+
+        return {
+            'data': {'items': transformed_data},
+        }

@@ -7,16 +7,50 @@ import { marketQueryKeys } from '../features/market/model/query-keys';
 import { PageShell } from '../shared/ui/PageShell';
 
 const fleaMarketVendorName = 'Барахолка';
-type MarketSortOptionValue = '' | MarketSortValue;
 
-const sortOptions: Array<{ value: MarketSortOptionValue; label: string }> = [
-  { value: '', label: 'Без сортировки' },
+const sortOptions: Array<{ value: MarketSortValue; label: string }> = [
+  { value: 'default', label: 'По умолчанию' },
+  { value: 'id', label: 'ID предмета' },
   { value: '24_price_desc', label: 'Цена за 24ч (по убыванию)' },
   { value: '24_price_asc', label: 'Цена за 24ч (по возрастанию)' },
   { value: 'trader_sell_desc', label: 'Цена продажи торговцу (по убыванию)' },
   { value: 'trader_sell_asc', label: 'Цена продажи торговцу (по возрастанию)' },
-  // TODO: Расширить список, когда на бэкенде появятся дополнительные поля сортировки.
+  { value: 'trader_buy_desc', label: 'Покупка у торговца (по убыванию)' },
+  { value: 'trader_buy_asc', label: 'Покупка у торговца (по возрастанию)' },
+  { value: 'sell_trader_from_market_desc', label: 'Барахолка → торговец (по убыванию)' },
+  { value: 'sell_trader_from_market_asc', label: 'Барахолка → торговец (по возрастанию)' },
+  { value: 'sell_market_from_trader_desc', label: 'Барахолка → барахолка (по убыванию)' },
+  { value: 'sell_market_from_trader_asc', label: 'Барахолка → барахолка (по возрастанию)' },
 ];
+
+type SortableColumnKey =
+  | 'name'
+  | 'avg24hPrice'
+  | 'traderSell'
+  | 'traderBuy'
+  | 'sellToTraderFromMarket'
+  | 'sellToMarketFromTrader';
+
+type ColumnSortConfig =
+  | { mode: 'single'; value: MarketSortValue }
+  | { mode: 'range'; desc: MarketSortValue; asc: MarketSortValue };
+
+const sortableColumnConfig: Record<SortableColumnKey, ColumnSortConfig> = {
+  name: { mode: 'single', value: 'id' },
+  avg24hPrice: { mode: 'range', desc: '24_price_desc', asc: '24_price_asc' },
+  traderSell: { mode: 'range', desc: 'trader_sell_desc', asc: 'trader_sell_asc' },
+  traderBuy: { mode: 'range', desc: 'trader_buy_desc', asc: 'trader_buy_asc' },
+  sellToTraderFromMarket: {
+    mode: 'range',
+    desc: 'sell_trader_from_market_desc',
+    asc: 'sell_trader_from_market_asc',
+  },
+  sellToMarketFromTrader: {
+    mode: 'range',
+    desc: 'sell_market_from_trader_desc',
+    asc: 'sell_market_from_trader_asc',
+  },
+};
 
 function formatPrice(price?: number) {
   if (price === undefined) {
@@ -31,7 +65,7 @@ function formatPricePoint(point?: MarketPricePoint) {
     return '—';
   }
 
-  return `${formatPrice(point.price)} ${point.currency}`;
+  return `${formatPrice(point.price)} ${point.currency} · ${point.vendor.name}`;
 }
 
 function getMarketPrice(points: MarketPricePoint[]) {
@@ -124,7 +158,7 @@ function SkeletonTable() {
 export function MarketPage() {
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState<MarketSortOptionValue>('');
+  const [sortBy, setSortBy] = useState<MarketSortValue>('default');
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -142,7 +176,7 @@ export function MarketPage() {
       getMarketPrices({
         cursor: pageParam,
         search: search || undefined,
-        sortBy: sortBy || undefined,
+        sortBy,
       }),
     getNextPageParam: (lastPage) => (lastPage.has_more ? (lastPage.next_cursor ?? undefined) : undefined),
   });
@@ -184,6 +218,44 @@ export function MarketPage() {
     [marketQuery.data?.pages],
   );
 
+  const getSortIndicator = (column: SortableColumnKey) => {
+    const config = sortableColumnConfig[column];
+
+    if (config.mode === 'single') {
+      return sortBy === config.value ? '↓' : '';
+    }
+
+    if (sortBy === config.desc) {
+      return '↓';
+    }
+
+    if (sortBy === config.asc) {
+      return '↑';
+    }
+
+    return '';
+  };
+
+  const handleColumnSort = (column: SortableColumnKey) => {
+    const config = sortableColumnConfig[column];
+
+    setSortBy((prevSort) => {
+      if (config.mode === 'single') {
+        return prevSort === config.value ? 'default' : config.value;
+      }
+
+      if (prevSort === config.desc) {
+        return config.asc;
+      }
+
+      if (prevSort === config.asc) {
+        return 'default';
+      }
+
+      return config.desc;
+    });
+  };
+
   return (
     <PageShell
       eyebrow="Аналитика барахолки"
@@ -206,7 +278,7 @@ export function MarketPage() {
           <span className="text-xs font-medium uppercase tracking-widest text-slate-400">Сортировка</span>
           <select
             className="h-11 rounded-xl border border-slate-700 bg-slate-950/70 px-4 text-sm text-slate-100 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-500/20"
-            onChange={(event) => setSortBy(event.target.value as MarketSortOptionValue)}
+            onChange={(event) => setSortBy(event.target.value as MarketSortValue)}
             value={sortBy}
           >
             {sortOptions.map((option) => (
@@ -233,22 +305,70 @@ export function MarketPage() {
               <thead className="bg-slate-900/80">
                 <tr className="text-xs uppercase tracking-wider text-slate-400">
                   <th className="w-24 px-4 py-3">Изображение</th>
-                  <th className="px-4 py-3">Название</th>
+                  <th className="px-4 py-3">
+                    <button
+                      className="cursor-pointer text-left transition hover:text-violet-300"
+                      onClick={() => handleColumnSort('name')}
+                      type="button"
+                    >
+                      Название {getSortIndicator('name')}
+                    </button>
+                  </th>
                   <th className="w-32 px-4 py-3">Wiki</th>
-                  <th className="w-36 px-4 py-3">Цена 24ч</th>
-                  <th className="w-40 px-4 py-3">Продажа торговцу</th>
-                  <th className="w-40 px-4 py-3">Покупка у торговца</th>
-                  <th className="w-44 px-4 py-3">Барахолка → торговец</th>
-                  <th className="w-44 px-4 py-3">Торговец → барахолка</th>
+                  <th className="w-36 px-4 py-3">
+                    <button
+                      className="cursor-pointer text-left transition hover:text-violet-300"
+                      onClick={() => handleColumnSort('avg24hPrice')}
+                      type="button"
+                    >
+                      Цена 24ч {getSortIndicator('avg24hPrice')}
+                    </button>
+                  </th>
+                  <th className="w-40 px-4 py-3">
+                    <button
+                      className="cursor-pointer text-left transition hover:text-violet-300"
+                      onClick={() => handleColumnSort('traderSell')}
+                      type="button"
+                    >
+                      Продажа торговцу {getSortIndicator('traderSell')}
+                    </button>
+                  </th>
+                  <th className="w-40 px-4 py-3">
+                    <button
+                      className="cursor-pointer text-left transition hover:text-violet-300"
+                      onClick={() => handleColumnSort('traderBuy')}
+                      type="button"
+                    >
+                      Покупка у торговца {getSortIndicator('traderBuy')}
+                    </button>
+                  </th>
+                  <th className="w-44 px-4 py-3">
+                    <button
+                      className="cursor-pointer text-left transition hover:text-violet-300"
+                      onClick={() => handleColumnSort('sellToTraderFromMarket')}
+                      type="button"
+                    >
+                      Барахолка → торговец {getSortIndicator('sellToTraderFromMarket')}
+                    </button>
+                  </th>
+                  <th className="w-44 px-4 py-3">
+                    <button
+                      className="cursor-pointer text-left transition hover:text-violet-300"
+                      onClick={() => handleColumnSort('sellToMarketFromTrader')}
+                      type="button"
+                    >
+                      Торговец → барахолка {getSortIndicator('sellToMarketFromTrader')}
+                    </button>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800 bg-slate-950/50">
                 {items.map((item) => {
                   const meta = item.meta;
-                  const traderSellPrice = getBestTraderSellPricePoint(meta.sellFor);
-                  const traderBuyPrice = getBestTraderBuyPricePoint(meta.buyFor);
-                  const fleaToTraderValue = getFleaToTraderValue(meta);
-                  const traderToFleaValue = getTraderToFleaValue(meta);
+                  const traderSellPrice = meta.maxSellFor ?? getBestTraderSellPricePoint(meta.sellFor);
+                  const traderBuyPrice = meta.minBuyFor ?? getBestTraderBuyPricePoint(meta.buyFor);
+                  const fleaToTraderValue = meta.sellToTraderFromMarket ?? getFleaToTraderValue(meta);
+                  const traderToFleaValue = meta.sellToMarketFromTrader ?? getTraderToFleaValue(meta);
 
                   return (
                     <tr className="align-top text-sm text-slate-200" key={item.id}>

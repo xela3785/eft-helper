@@ -11,7 +11,8 @@ router = APIRouter()
 
 @router.get('/prices')
 async def get_prices(
-        sort_by: str = Query(default='id'),
+        sort_by: str = Query(default='default'),
+        search: str = Query(default=None),
         limit: int = Query(default=50, ge=1, le=100),
         cursor: Optional[str] = None
 ):
@@ -19,6 +20,7 @@ async def get_prices(
         sort_by=sort_by,
         cursor_id=cursor,
         limit=limit,
+        search=search,
     )
 
     if not ids_page:
