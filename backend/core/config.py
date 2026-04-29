@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     GITHUB_CLIENT_SECRET: str | None = os.getenv('GITHUB_CLIENT_SECRET', None)
     GITHUB_REDIRECT_URL: str | None = os.getenv('GITHUB_REDIRECT_URL', None)
 
+    # Market Sync
+    MARKET_SYNC_INTERVAL_SECONDS: int = 15 * 60
+
     class Config:
         env_file = '.env'
 

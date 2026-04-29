@@ -75,7 +75,8 @@ class TarkovDevAPIClient:
                 await asyncio.sleep(delay)
             except Exception as e:
                 logger.exception(
-                    f'Undexpected exception while requesting API data from TarkovDevAPIClient: {e}'
+                    f'Unexpected exception while requesting API data from TarkovDevAPIClient: {e}'
                 )
                 return None
             return None
+        return None

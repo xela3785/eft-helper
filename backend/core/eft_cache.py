@@ -11,6 +11,7 @@ from typing import Optional, Dict, Any
 
 import cachetools
 
+from core.exceptions import GraphQLResponseError, APIUnavailableError, CacheWriteError
 from core.tarkov_dev_client import TarkovDevAPIClient
 
 logger = logging.getLogger(__name__)
@@ -148,15 +149,19 @@ class AbstractCache(ABC, metaclass=SingletonABCMeta):
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
 
-    async def update_from_api(self) -> bool:
+    async def update_from_api(self, raise_exceptions=False) -> bool:
         api_data = await self._request_api_data()
         if not api_data:
+            if raise_exceptions:
+                raise APIUnavailableError('Failed to update from API')
             return False
 
         if 'errors' in api_data:
             logger.error(
                 f'GraphQL errors in class {self.__class__.__name__}: {api_data["errors"]}'
             )
+            if raise_exceptions:
+                raise GraphQLResponseError(api_data["errors"])
             return False
 
         try:
@@ -178,6 +183,8 @@ class AbstractCache(ABC, metaclass=SingletonABCMeta):
                 f'Exception was raised while updating from API in class: {self.__class__.__name__}.'
                 f'Original exception: {e}'
             )
+            if raise_exceptions:
+                raise CacheWriteError('Failed to write cache') from e
             return False
 
 

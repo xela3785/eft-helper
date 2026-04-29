@@ -67,9 +67,8 @@ class ItemIndexes:
             logger.info(f'Built indexes for: {len(self._indexes["id"])} items')
 
     async def reindex(self):
-        async with self._lock:
-            self._filters_cache.clear()
-            await self.build_indexes()
+        self._filters_cache.clear()
+        await self.build_indexes()
 
     def _filter_ids(
             self,
