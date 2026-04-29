@@ -1,10 +1,12 @@
 import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 import jwt
 from fastapi import HTTPException, status, Response
 from jwt import ExpiredSignatureError, InvalidTokenError, DecodeError
 from passlib.context import CryptContext
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 from sqlalchemy.orm import Session
 
 from core.config import settings
@@ -16,11 +18,13 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class UserService:
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
-    def create_user(self, user_data: UserCreate) -> User:
-        existing_user = self.db.query(User).filter(User.email == user_data.email).first()
+    async def create_user(self, user_data: UserCreate) -> User:
+        stmt = select(User).where(User.email == user_data.email)
+        result = await self.db.execute(stmt)
+        existing_user = result.scalar_one_or_none()
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -30,12 +34,14 @@ class UserService:
         hashed_password = self.hash_password(user_data.password)
         db_user = User(email=user_data.email, hashed_password=hashed_password)
         self.db.add(db_user)
-        self.db.commit()
-        self.db.refresh(db_user)
+        await self.db.commit()
+        await self.db.refresh(db_user)
         return db_user
 
-    def get_user(self, user_id: int) -> type[User]:
-        user = self.db.query(User).filter(User.id == user_id).first()
+    async def get_user(self, user_id: int) -> User | None:
+        stmt = select(User).where(User.id == user_id)
+        result = await self.db.execute(stmt)
+        user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -44,8 +50,10 @@ class UserService:
 
         return user
 
-    def get_user_by_email(self, email: str) -> type[User]:
-        user = self.db.query(User).filter(User.email == email).first()
+    async def get_user_by_email(self, email: str) -> User | None:
+        stmt = select(User).where(User.email == email)
+        result = await self.db.execute(stmt)
+        user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -60,11 +68,13 @@ class UserService:
 
 class AuthenticationService:
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
-    def authenticate_user(self, email: str, password: str) -> Annotated[type[User] | bool, None]:
-        user = self.db.query(User).filter(User.email == email).first()
+    async def authenticate_user(self, email: str, password: str) -> User | None:
+        stmt = select(User).where(User.email == email)
+        result = await self.db.execute(stmt)
+        user = result.scalar_one_or_none()
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -77,15 +87,15 @@ class AuthenticationService:
             )
         return user
 
-    def generate_tokens(self, data: dict) -> dict:
+    async def generate_tokens(self, data: dict) -> dict:
         """ Generate access and refresh token based on username """
         to_encode = data.copy()
 
         access_token_expire = self.get_exp(settings.ACCESS_TOKEN_EXPIRE)
         refresh_token_expire = self.get_exp(settings.REFRESH_TOKEN_EXPIRE)
 
-        access_token = self.generate_token(to_encode, access_token_expire)
-        refresh_token = self.generate_token(to_encode, refresh_token_expire)
+        access_token = await self.generate_token(to_encode, access_token_expire)
+        refresh_token = await self.generate_token(to_encode, refresh_token_expire)
 
         return {
             "access_token": access_token,
@@ -94,16 +104,16 @@ class AuthenticationService:
             "refresh_token_expire": refresh_token_expire,
         }
 
-    def set_cookie_tokens(
+    async def set_cookie_tokens(
             self, data: dict, response: Response | None = None
     ) -> Response:
-        tokens: dict = self.generate_tokens(data)
+        tokens: dict = await self.generate_tokens(data)
         if not response:
             response = Response(status_code=status.HTTP_204_NO_CONTENT)
-        response = self.set_access_token(
+        response = await self.set_access_token(
             tokens.get('access_token'), tokens.get('access_token_expire'), response
         )
-        response = self.set_refresh_token(
+        response = await self.set_refresh_token(
             tokens.get('refresh_token'), tokens.get('refresh_token_expire'), response
         )
         return response
@@ -119,7 +129,7 @@ class AuthenticationService:
         )
 
     @staticmethod
-    def validate_refresh_token(token: str) -> int | None:
+    async def validate_refresh_token(token: str) -> int | None:
         try:
             payload = jwt.decode(
                 token,
@@ -134,7 +144,7 @@ class AuthenticationService:
             return None
 
     @staticmethod
-    def set_access_token(
+    async def set_access_token(
             access_token: str, expire: datetime.datetime, response: Response
     ) -> Response:
         response.set_cookie(
@@ -147,7 +157,7 @@ class AuthenticationService:
         return response
 
     @staticmethod
-    def set_refresh_token(
+    async def set_refresh_token(
             refresh_token: str, expire: datetime.datetime, response: Response
     ) -> Response:
         """ Set refresh token based on username """
@@ -161,15 +171,15 @@ class AuthenticationService:
         return response
 
     @staticmethod
-    def generate_token(to_encode: dict, expire: datetime.datetime) -> str:
+    async def generate_token(to_encode: dict, expire: datetime.datetime) -> str:
         to_encode.update({"exp": expire})
         return jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
 
     @staticmethod
-    def logout_user(response: Response | None = None) -> Response:
+    async def logout_user(response: Response | None = None) -> Response:
         """ Logout user """
         if not response:
-            response = Response(status_code=204)
+            response: Response = Response(status_code=204)
         response.delete_cookie("access_token")
         response.delete_cookie("refresh_token")
         return response

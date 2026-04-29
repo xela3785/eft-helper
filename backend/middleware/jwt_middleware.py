@@ -19,7 +19,7 @@ class JWTTokenRefreshMiddleware(BaseHTTPMiddleware):
 
         token_needs_refresh = False
         request.state.user_payload = None
-        auth_service = get_auth_service()
+        auth_service = await get_auth_service()
 
         if access_token:
             try:
@@ -59,10 +59,10 @@ class JWTTokenRefreshMiddleware(BaseHTTPMiddleware):
 
                     response = await call_next(request)
 
-                    response = auth_service.set_access_token(
+                    response = await auth_service.set_access_token(
                         new_access_token, new_tokens.get('access_token_expire'), response
                     )
-                    response = auth_service.set_refresh_token(
+                    response = await auth_service.set_refresh_token(
                         new_refresh_token, new_tokens.get('refresh_token_expire'), response
                     )
 
@@ -70,10 +70,10 @@ class JWTTokenRefreshMiddleware(BaseHTTPMiddleware):
 
             except InvalidTokenError:
                 response = await call_next(request)
-                return auth_service.logout_user(response)
+                return await auth_service.logout_user(response)
             except Exception as e:
                 response = await call_next(request)
-                return auth_service.logout_user(response)
+                return await auth_service.logout_user(response)
 
         response = await call_next(request)
         return response
@@ -88,9 +88,9 @@ class JWTTokenRefreshMiddleware(BaseHTTPMiddleware):
     async def get_new_tokens(
             refresh_token: str,
     ) -> dict | None:
-        auth_service = get_auth_service()
-        user_id = auth_service.validate_refresh_token(refresh_token)
+        auth_service = await get_auth_service()
+        user_id = await auth_service.validate_refresh_token(refresh_token)
         if not user_id:
             raise InvalidTokenError('Incorrect refresh_token')
 
-        return auth_service.generate_tokens(data={'sub': user_id})
+        return await auth_service.generate_tokens(data={'sub': user_id})

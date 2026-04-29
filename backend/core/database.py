@@ -1,19 +1,45 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
+import sqlalchemy as sa
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import declarative_base
 
 from core.config import settings
 
-engine = create_engine(
-    settings.SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+engine = create_async_engine(
+    settings.SQLALCHEMY_DATABASE_URL,
+    echo=False,
+    pool_size=5,
+    max_overflow=10,
+    connect_args={
+        'check_same_thread': False,
+        'timeout': 30.0,
+        'isolation_level': None
+    }
 )
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+async def enable_wal():
+    async with engine.begin() as conn:
+        await conn.execute(sa.text('PRAGMA journal_mode=WAL'))
+
+
+AsyncSessionLocal = async_sessionmaker(
+    engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+    autocommit=False,
+    autoflush=False
+)
 
 Base = declarative_base()
 
+
 async def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            pass
