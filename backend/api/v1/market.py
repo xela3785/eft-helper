@@ -12,7 +12,7 @@ router = APIRouter()
 @router.get('/prices')
 async def get_prices(
         sort_by: str = Query(default='default'),
-        search: str = Query(default=None),
+        search: str = Query(default=None, alias='q'),
         limit: int = Query(default=50, ge=1, le=100),
         cursor: Optional[str] = None
 ):

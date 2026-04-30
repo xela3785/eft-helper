@@ -34,7 +34,7 @@ export function ModuleRequirements({
     try {
       await incrementItem(moduleId, level.id, requirement.id, getRequirementTotal(requirement), requirement.item.id);
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Не удалось сохранить локальный прогресс.'));
+      toast.error(getErrorMessage(error, 'Не удалось сохранить прогресс и синхронизировать его с сервером.'));
     }
   }
 
@@ -42,7 +42,7 @@ export function ModuleRequirements({
     try {
       await decrementItem(moduleId, level.id, requirement.id, requirement.item.id);
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Не удалось сохранить локальный прогресс.'));
+      toast.error(getErrorMessage(error, 'Не удалось сохранить прогресс и синхронизировать его с сервером.'));
     }
   }
 
@@ -60,7 +60,7 @@ export function ModuleRequirements({
         },
       ]);
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Не удалось полностью заполнить прогресс предмета.'));
+      toast.error(getErrorMessage(error, 'Не удалось обновить прогресс предмета и синхронизировать его.'));
     }
   }
 

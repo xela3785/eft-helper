@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { getHideoutModules } from '../entities/module/api';
+import { useAuthStore } from '../features/auth/model/auth-store';
 import { DashboardViewSwitcher } from '../features/hideout/components/DashboardViewSwitcher';
 import { ModuleCard } from '../features/hideout/components/ModuleCard';
 import { ModuleGridSkeleton } from '../features/hideout/components/ModuleGridSkeleton';
@@ -18,10 +19,11 @@ export function DashboardPage() {
   const isHydrated = useHideoutProgressStore((state) => state.isHydrated);
   const lastSyncedAt = useHideoutProgressStore((state) => state.lastSyncedAt);
   const progressModules = useHideoutProgressStore((state) => state.modules);
+  const userId = useAuthStore((state) => state.user?.id ?? null);
 
   useEffect(() => {
     void initializeProgress();
-  }, [initializeProgress]);
+  }, [initializeProgress, userId]);
 
   useEffect(() => {
     setStoredDashboardView('expanded');
@@ -75,7 +77,7 @@ export function DashboardPage() {
             <h2 className="text-lg font-semibold text-slate-50">Список модулей</h2>
           </div>
           <p className="text-sm text-slate-400">
-            Последняя локальная синхронизация:{' '}
+            Последнее обновление прогресса:{' '}
             <span className="text-slate-200">
               {lastSyncedAt ? new Date(lastSyncedAt).toLocaleString('ru-RU') : 'еще не выполнялась'}
             </span>

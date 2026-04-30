@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { getHideoutModule } from '../entities/module/api';
+import { useAuthStore } from '../features/auth/model/auth-store';
 import { ModuleRequirements } from '../features/hideout/components/ModuleRequirements';
 import {
   formatConstructionTime,
@@ -26,10 +27,11 @@ export function ModuleDetailPage() {
   const progressModules = useHideoutProgressStore((state) => state.modules);
   const progress = useHideoutProgressStore((state) => state.modules[moduleId]);
   const upgradeModule = useHideoutProgressStore((state) => state.upgradeModule);
+  const userId = useAuthStore((state) => state.user?.id ?? null);
 
   useEffect(() => {
     void initializeProgress();
-  }, [initializeProgress]);
+  }, [initializeProgress, userId]);
 
   const { data: module, isLoading, error } = useQuery({
     queryKey: ['hideout-module', moduleId],
@@ -96,7 +98,7 @@ export function ModuleDetailPage() {
       await upgradeModule(moduleId, targetLevel!.level, summary.maxLevel);
       toast.success(`Модуль повышен до уровня ${targetLevel!.level}.`);
     } catch (upgradeError) {
-      toast.error(getErrorMessage(upgradeError, 'Не удалось обновить уровень модуля.'));
+      toast.error(getErrorMessage(upgradeError, 'Не удалось сохранить прогресс модуля и синхронизировать его с сервером.'));
     }
   }
 
@@ -205,7 +207,7 @@ export function ModuleDetailPage() {
                 {targetLevel ? `Предметы для уровня ${targetLevel.level}` : 'Максимальный уровень достигнут'}
               </h3>
               <p className="mt-1 text-sm text-slate-400">
-                Изменения сохраняются локально сразу после каждого клика.
+                Изменения сохраняются автоматически и для авторизованного пользователя синхронизируются с сервером.
               </p>
               <div className="mt-4">
                 {targetLevel ? (

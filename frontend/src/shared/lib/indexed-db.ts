@@ -14,9 +14,13 @@ const dbPromise = openDB(DATABASE_NAME, DATABASE_VERSION, {
   },
 });
 
-export async function readProgressSnapshot(): Promise<ProgressSnapshot> {
+export function getProgressStorageKey(userId?: number | null) {
+  return userId ? `user-progress-${userId}` : GUEST_PROGRESS_KEY;
+}
+
+export async function readProgressSnapshot(storageKey = GUEST_PROGRESS_KEY): Promise<ProgressSnapshot> {
   const database = await dbPromise;
-  const snapshot = await database.get(STORE_NAME, GUEST_PROGRESS_KEY);
+  const snapshot = await database.get(STORE_NAME, storageKey);
 
   return (
     snapshot ?? {
@@ -26,7 +30,7 @@ export async function readProgressSnapshot(): Promise<ProgressSnapshot> {
   );
 }
 
-export async function writeProgressSnapshot(snapshot: ProgressSnapshot) {
+export async function writeProgressSnapshot(snapshot: ProgressSnapshot, storageKey = GUEST_PROGRESS_KEY) {
   const database = await dbPromise;
-  await database.put(STORE_NAME, snapshot, GUEST_PROGRESS_KEY);
+  await database.put(STORE_NAME, snapshot, storageKey);
 }
