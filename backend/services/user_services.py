@@ -1,5 +1,5 @@
 import datetime
-from typing import Annotated, Any
+from typing import Optional, Dict, Any
 
 import jwt
 from fastapi import HTTPException, status, Response
@@ -7,7 +7,6 @@ from jwt import ExpiredSignatureError, InvalidTokenError, DecodeError
 from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import Session
 
 from core.config import settings
 from models.users import User
@@ -38,7 +37,7 @@ class UserService:
         await self.db.refresh(db_user)
         return db_user
 
-    async def get_user(self, user_id: int) -> User | None:
+    async def get_user(self, user_id: int) -> Optional[User]:
         stmt = select(User).where(User.id == user_id)
         result = await self.db.execute(stmt)
         user = result.scalar_one_or_none()
@@ -50,7 +49,7 @@ class UserService:
 
         return user
 
-    async def get_user_by_email(self, email: str) -> User | None:
+    async def get_user_by_email(self, email: str) -> Optional[User]:
         stmt = select(User).where(User.email == email)
         result = await self.db.execute(stmt)
         user = result.scalar_one_or_none()
@@ -71,7 +70,7 @@ class AuthenticationService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
-    async def authenticate_user(self, email: str, password: str) -> User | None:
+    async def authenticate_user(self, email: str, password: str) -> Optional[User]:
         stmt = select(User).where(User.email == email)
         result = await self.db.execute(stmt)
         user = result.scalar_one_or_none()
@@ -87,7 +86,7 @@ class AuthenticationService:
             )
         return user
 
-    async def generate_tokens(self, data: dict) -> dict:
+    async def generate_tokens(self, data: dict) -> Dict[str, Any]:
         """ Generate access and refresh token based on username """
         to_encode = data.copy()
 
@@ -105,9 +104,9 @@ class AuthenticationService:
         }
 
     async def set_cookie_tokens(
-            self, data: dict, response: Response | None = None
+            self, data: dict, response: Optional[Response] = None
     ) -> Response:
-        tokens: dict = await self.generate_tokens(data)
+        tokens: Dict[str, Any] = await self.generate_tokens(data)
         if not response:
             response = Response(status_code=status.HTTP_204_NO_CONTENT)
         response = await self.set_access_token(
@@ -129,14 +128,14 @@ class AuthenticationService:
         )
 
     @staticmethod
-    async def validate_refresh_token(token: str) -> int | None:
+    async def validate_refresh_token(token: str) -> Optional[int]:
         try:
             payload = jwt.decode(
                 token,
                 settings.SECRET_KEY,
                 algorithms=[settings.ALGORITHM]
             )
-            user_id: int | None = payload.get('sub')
+            user_id: Optional[int] = payload.get('sub')
             if not user_id:
                 return None
             return user_id
@@ -176,7 +175,7 @@ class AuthenticationService:
         return jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
 
     @staticmethod
-    async def logout_user(response: Response | None = None) -> Response:
+    async def logout_user(response: Optional[Response] = None) -> Response:
         """ Logout user """
         if not response:
             response: Response = Response(status_code=204)
