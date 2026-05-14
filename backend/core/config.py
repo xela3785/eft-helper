@@ -32,8 +32,8 @@ class Settings(BaseSettings):
     # Market Sync
     MARKET_SYNC_INTERVAL_SECONDS: int = 15 * 60
 
-    class Config:
-        env_file = '.env'
+    class ConfigDict:
+        env_file: str = '.env'
 
 
 settings = Settings()
