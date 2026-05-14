@@ -77,7 +77,7 @@ export function CompactModuleCard({ module }: CompactModuleCardProps) {
           : `Все предметы для ${module.name} отмечены как собранные.`,
       );
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Не удалось заполнить предметы текущего уровня.'));
+      toast.error(getErrorMessage(error, 'Не удалось сохранить прогресс и синхронизировать предметы с сервером.'));
     }
   }
 
@@ -96,7 +96,7 @@ export function CompactModuleCard({ module }: CompactModuleCardProps) {
       await upgradeModule(module.id, targetLevel!.level, summary.maxLevel);
       toast.success(`Уровень модуля ${module.name} повышен.`);
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Не удалось сохранить новый уровень модуля.'));
+      toast.error(getErrorMessage(error, 'Не удалось сохранить прогресс модуля и синхронизировать его с сервером.'));
     }
   }
 
@@ -110,7 +110,7 @@ export function CompactModuleCard({ module }: CompactModuleCardProps) {
       await downgradeModule(module.id, summary.currentLevelNumber - 1, 0);
       toast.success(`Уровень модуля ${module.name} понижен.`);
     } catch (error) {
-      toast.error(getErrorMessage(error, 'Не удалось сохранить новый уровень модуля.'));
+      toast.error(getErrorMessage(error, 'Не удалось сохранить прогресс модуля и синхронизировать его с сервером.'));
     }
   }
 

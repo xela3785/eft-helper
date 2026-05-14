@@ -1,10 +1,12 @@
+from typing import Optional
+
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
 from starlette.requests import Request
 
 from core.database import get_db
 from models.users import User
+from services.hideout_services import HideoutService
 from services.user_services import UserService, AuthenticationService
 
 
@@ -16,10 +18,14 @@ async def get_auth_service(db: AsyncSession = Depends(get_db)) -> Authentication
     return AuthenticationService(db)
 
 
+async def get_hideout_service(db: AsyncSession = Depends(get_db)) -> HideoutService:
+    return HideoutService(db)
+
+
 async def get_current_active_user(
         request: Request,
         user_service: UserService = Depends(get_user_service)
-) -> type[User]:
+) -> Optional[User]:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail='Could not validate credentials',

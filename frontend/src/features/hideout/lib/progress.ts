@@ -35,7 +35,25 @@ export function getRequirementCollected(
   levelId: string,
   requirementId: string,
 ) {
-  return progress?.levelProgress[levelId]?.[requirementId] ?? 0;
+  const levelValue = progress?.levelProgress[levelId]?.[requirementId];
+
+  if (typeof levelValue === 'number') {
+    return levelValue;
+  }
+
+  if (!progress) {
+    return 0;
+  }
+
+  for (const requirements of Object.values(progress.levelProgress)) {
+    const fallbackValue = requirements[requirementId];
+
+    if (typeof fallbackValue === 'number') {
+      return fallbackValue;
+    }
+  }
+
+  return 0;
 }
 
 function getStoredLevel(module: HideoutModule, progress?: ModuleProgress) {

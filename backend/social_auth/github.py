@@ -56,8 +56,9 @@ async def process_github_callback(code: str, db: AsyncSession) -> tuple[User | N
     provider_id = info['id']
     email = info['email']
 
-    stmt = select(User).where(User.email == email)
-    result = await db.execute(stmt)
+    result = await db.execute(
+        select(User).where(User.email == email)
+    )
     user: User | None = result.scalar_one_or_none()
     created_new = False
 
@@ -74,10 +75,11 @@ async def process_github_callback(code: str, db: AsyncSession) -> tuple[User | N
         created_new = True
 
     elif user.provider != 'github':
-        stmt = select(UserSocialLink).where(
-            UserSocialLink.provider == 'github', UserSocialLink.provider_user_id == provider_id
+        result = await db.execute(
+            select(UserSocialLink).where(
+                UserSocialLink.provider == 'github', UserSocialLink.provider_user_id == provider_id
+            )
         )
-        result = await db.execute(stmt)
         link: UserSocialLink | None = result.scalar_one_or_none()
         if not link:
             new_link = UserSocialLink(
@@ -93,11 +95,12 @@ async def process_github_callback(code: str, db: AsyncSession) -> tuple[User | N
             await db.commit()
 
     else:
-        stmt = select(User).where(
-            UserSocialLink.provider == 'github',
-            UserSocialLink.provider_user_id == provider_id
+        result = await db.execute(
+            select(User).where(
+                UserSocialLink.provider == 'github',
+                UserSocialLink.provider_user_id == provider_id
+            )
         )
-        result = await db.execute(stmt)
         link: UserSocialLink | None = result.scalar_one_or_none()
         if link and not link.access_token:
             link.access_token = access_token

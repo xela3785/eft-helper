@@ -7,7 +7,6 @@ from starlette.middleware.cors import CORSMiddleware
 
 from api.v1 import hideout, user, market
 from core.eft_cache import ModulesCache, MarketCache
-from core.indexes import item_indexes
 from core.price_sync import refresh_prices_task
 from middleware.jwt_middleware import JWTTokenRefreshMiddleware
 
@@ -20,8 +19,6 @@ async def lifespan(app: FastAPI):
 
     if not modules_cache_data.get('data', {}).get('hideoutStations', []):
         await ModulesCache().update_from_api()
-
-    # await item_indexes.build_indexes()
 
     asyncio.create_task(refresh_prices_task())
     yield

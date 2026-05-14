@@ -21,10 +21,10 @@ class UserService:
         self.db = db
 
     async def create_user(self, user_data: UserCreate) -> User:
-        stmt = select(User).where(User.email == user_data.email)
-        result = await self.db.execute(stmt)
-        existing_user = result.scalar_one_or_none()
-        if existing_user:
+        result = await self.db.execute(
+            select(User).where(User.email == user_data.email)
+        )
+        if result.scalar_one_or_none():
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='Email already registered'
@@ -38,10 +38,10 @@ class UserService:
         return db_user
 
     async def get_user(self, user_id: int) -> Optional[User]:
-        stmt = select(User).where(User.id == user_id)
-        result = await self.db.execute(stmt)
-        user = result.scalar_one_or_none()
-        if not user:
+        result = await self.db.execute(
+            select(User).where(User.id == user_id)
+        )
+        if not (user := result.scalar_one_or_none()):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='User not found'
@@ -50,10 +50,10 @@ class UserService:
         return user
 
     async def get_user_by_email(self, email: str) -> Optional[User]:
-        stmt = select(User).where(User.email == email)
-        result = await self.db.execute(stmt)
-        user = result.scalar_one_or_none()
-        if not user:
+        result = await self.db.execute(
+            select(User).where(User.email == email)
+        )
+        if not (user := result.scalar_one_or_none()):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='User not found'
@@ -71,10 +71,10 @@ class AuthenticationService:
         self.db = db
 
     async def authenticate_user(self, email: str, password: str) -> Optional[User]:
-        stmt = select(User).where(User.email == email)
-        result = await self.db.execute(stmt)
-        user = result.scalar_one_or_none()
-        if not user:
+        result = await self.db.execute(
+            select(User).where(User.email == email)
+        )
+        if not (user := result.scalar_one_or_none()):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='User not found'

@@ -52,8 +52,9 @@ async def process_google_callback(code: str, db: AsyncSession) -> tuple[User | N
     if not email or not provider_id:
         raise ValueError('Google did not return required information')
 
-    stmt = select(User).where(User.email == email)
-    result = await db.execute(stmt)
+    result = await db.execute(
+        select(User).where(User.email == email)
+    )
     user: User | None = result.scalar_one_or_none()
     created_new = False
 
@@ -70,11 +71,12 @@ async def process_google_callback(code: str, db: AsyncSession) -> tuple[User | N
         created_new = True
 
     elif user.provider != 'google':
-        stmt = select(UserSocialLink).where(
-            UserSocialLink.provider == 'google',
-            UserSocialLink.provider_user_id == provider_id,
+        result = await db.execute(
+            select(UserSocialLink).where(
+                UserSocialLink.provider == 'google',
+                UserSocialLink.provider_user_id == provider_id,
+            )
         )
-        result = await db.execute(stmt)
         link: UserSocialLink | None = result.scalar_one_or_none()
         if not link:
             new_link = UserSocialLink(
@@ -90,11 +92,12 @@ async def process_google_callback(code: str, db: AsyncSession) -> tuple[User | N
             await db.commit()
 
     else:
-        stmt = select(UserSocialLink).where(
-            UserSocialLink.provider == 'google',
-            UserSocialLink.provider_user_id == provider_id,
+        result = await db.execute(
+            select(UserSocialLink).where(
+                UserSocialLink.provider == 'google',
+                UserSocialLink.provider_user_id == provider_id,
+            )
         )
-        result = await db.execute(stmt)
         link: UserSocialLink | None = result.scalar_one_or_none()
         if link and not link.access_token:
             link.access_token = access_token
